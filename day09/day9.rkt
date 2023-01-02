@@ -110,5 +110,75 @@
       ;;(displayln (format "  ~a ~a" h t))
       (values
        (rope h t)
-       (set-add seen t))
-    )))
+       (set-add seen t)))))
+
+;;
+;; part 2
+;;
+
+(define (new-rope10 pt)
+  (for/list ([i (in-range 10)])
+    pt))
+
+;; just represent the 10-element rope as a list
+(define (update-rope10 r10 dir)
+  ;; update the first element
+  (let ([new-head (next-head (first r10) dir)])
+    ;; cascade and update each tail element
+    (for/fold ([result (list new-head)]
+               #:result (reverse result))
+              ([elt (in-list (rest r10))])
+      (cons (next-tail (first result) elt)
+            result))))
+
+(define (group-points dat)
+  ;; helper to reverse order of value cons
+  (define (hash-val-reverse table)
+    (for/hash ([(key value) (in-hash table)])
+      (values key (reverse value))))
+
+  ;; collect the numeric ids in a list per point
+  ;; (0 . 0) => (2 3 4)
+  (for/fold ([result (make-immutable-hash)]
+             #:result (hash-val-reverse result))
+            ([ix (range (length dat))]
+             [elt (in-list dat)])
+    (hash-set result elt
+              (if (hash-has-key? result elt)
+                  (cons ix (hash-ref result elt))
+                  (list ix)))))
+
+(define (display-rope10 r10 width height)
+  (let ([ids (group-points r10)])
+    ;; print main grid
+    (for ([y (range height)])
+      (displayln (string-join
+                  (for/list ([x (range width)])
+                    (let ([pts (hash-ref ids (cons x y) empty)])
+                      (if (> (length pts) 0)
+                          (format "~a" (first pts))
+                          "#"))))))
+    ;; print supplemental "covers" info
+    (for ([(key value) (in-hash ids)])
+      (when (> (length value) 1)
+          (printf "~a covers ~a\n" (first value) (rest value))))))
+
+;; sample1 should start at '(0 . 4) and have board dimensions 6 5
+;; sample2 starts at '(11 . 15) with dimensions 26 21
+;; XXX need to work out a smarter way to deal with arbitrary inputs?
+(define (aoc-9-2 input-file)
+  ;; semi-constants
+  (define INITIAL-POINT '(0 . 0))
+  (define WIDTH 26)
+  (define HEIGHT 21)
+  (for*/fold ([state (new-rope10 INITIAL-POINT)]
+              [seen (set)]
+              #:result (set-count seen))
+             ([cmd (parse-file input-file)]
+              [count (range (cdr cmd))])
+    ;;(displayln (format "~a #~a" (car cmd) count))
+    (let ([updated (update-rope10 state (car cmd))])
+      ;;(display-rope10 updated WIDTH HEIGHT)
+      (values
+       updated
+       (set-add seen (last updated))))))
